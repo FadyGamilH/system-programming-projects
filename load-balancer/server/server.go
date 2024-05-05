@@ -86,6 +86,7 @@ func StartServer(servers *loadBalancerServerList, wg *sync.WaitGroup) {
 		})
 	})
 
+	// shutdown specific server, but other servers are running as usual
 	router.GET("/shutdown", func(c *gin.Context) {
 		// Retrieve the server instance from the map
 		srv, ok := serversMap[port]

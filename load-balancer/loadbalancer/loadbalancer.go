@@ -1,7 +1,9 @@
 package loadbalancer
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -16,7 +18,7 @@ var (
 )
 
 type loadBalancer struct {
-	reverseProxy     httputil.ReverseProxy
+	reverseProxy     *httputil.ReverseProxy
 	serversEndpoints endpoints
 }
 
@@ -31,7 +33,7 @@ func newLoadBalancer(numOfServers int16) *loadBalancer {
 	}
 
 	for i := 0; i < int(numOfServers); i++ {
-		url, err := url.Parse(fmt.Sprintf("%s%d", BaseUrl, i))
+		url, err := url.Parse(fmt.Sprintf("%s%d/", BaseUrl, i))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -40,6 +42,10 @@ func newLoadBalancer(numOfServers int16) *loadBalancer {
 	return &loadBalancer{
 		serversEndpoints: endpoints,
 	}
+}
+
+type ServerResponse struct {
+	Server string `json:"server"`
 }
 
 /*
@@ -59,13 +65,54 @@ func RunLoanBalancer(numOfServers int16) {
 			// shuffel so we check the health of the next one
 			lb.serversEndpoints.RoundRobinShufelling()
 		}
+		currentServerUrl := lb.serversEndpoints.CurrentEndpoint()
+		log.Println("current server url : ", currentServerUrl)
+		lb.reverseProxy = httputil.NewSingleHostReverseProxy(currentServerUrl)
+		log.Println("==========> current endpoint ", lb.serversEndpoints.CurrentEndpoint())
 		// once we here, so the server is up and running, and we cna redirect the request to it, then we need to shuffel the servers to forward the next request to the next server
-		defer lb.serversEndpoints.RoundRobinShufelling()
-		lb.reverseProxy = *httputil.NewSingleHostReverseProxy(lb.serversEndpoints.CurrentEndpoint())
-		lb.reverseProxy.ServeHTTP(c.Writer, c.Request)
+		lb.serversEndpoints.RoundRobinShufelling()
+		// lb.reverseProxy.ServeHTTP(c.Writer, c.Request)
+		// Manually construct the request to forward
+		req, err := http.NewRequest("GET", currentServerUrl.String(), nil)
+		if err != nil {
+			log.Println("Error creating request:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
+
+		// Use the http.Client to send the request
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Println("Error forwarding request:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
+		defer resp.Body.Close()
+
+		// Forward the response back to the client
+		// Read the response body
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Println("Error reading response body:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
+
+		// Parse the JSON response body into the struct
+		var bodyStruct ServerResponse
+		err = json.Unmarshal(bodyBytes, &bodyStruct)
+		if err != nil {
+			log.Println("Error parsing JSON:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
+
+		// Send the struct as part of the response
+		c.JSON(http.StatusOK, gin.H{"resp": bodyStruct})
 	})
 
-	log.Fatal(router.Run(":" + loadBalancerPort))
+	router.Run("localhost:" + loadBalancerPort)
 }
 
 /*
@@ -74,11 +121,9 @@ isServerUp(url) check if the server is up and running, and its response is 200
 func isServerUp(serverUrl url.URL) bool {
 	response, err := http.Get(serverUrl.String())
 	if err != nil {
+		log.Println("found error : ", err)
 		return false
 	}
-	if response.StatusCode != http.StatusOK {
-		return false
-	}
-
-	return true
+	log.Println("response is : ", response.StatusCode)
+	return response.StatusCode == http.StatusOK
 }
