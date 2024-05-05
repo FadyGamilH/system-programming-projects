@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"slices"
 	"sync"
@@ -75,5 +76,5 @@ func StartServer(servers *loadBalancerServerList, wg *sync.WaitGroup) {
 			"server": port,
 		})
 	})
-	router.Run(":" + port)
+	log.Fatal(router.Run(":" + port))
 }

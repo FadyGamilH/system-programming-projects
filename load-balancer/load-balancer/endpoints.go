@@ -17,6 +17,6 @@ func (e *endpoints) RoundRobinShufelling() {
 	e.urls = append(e.urls, firstUrl)
 }
 
-func (e *endpoints) CurrentEndpoint() url.URL {
-	return e.urls[0]
+func (e *endpoints) CurrentEndpoint() *url.URL {
+	return &e.urls[0]
 }
