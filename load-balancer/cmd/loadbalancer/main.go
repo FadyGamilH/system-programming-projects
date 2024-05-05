@@ -1,6 +1,6 @@
 package main
 
-import loadbalancer "loadbalancer/load-balancer"
+import loadbalancer "loadbalancer/loadbalancer"
 
 func main() {
 	loadbalancer.RunLoanBalancer(3)
