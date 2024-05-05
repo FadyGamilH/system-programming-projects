@@ -66,16 +66,13 @@ func RunLoanBalancer(numOfServers int16) {
 			lb.serversEndpoints.RoundRobinShufelling()
 		}
 		currentServerUrl := lb.serversEndpoints.CurrentEndpoint()
-		log.Println("current server url : ", currentServerUrl)
 		lb.reverseProxy = httputil.NewSingleHostReverseProxy(currentServerUrl)
-		log.Println("==========> current endpoint ", lb.serversEndpoints.CurrentEndpoint())
 		// once we here, so the server is up and running, and we cna redirect the request to it, then we need to shuffel the servers to forward the next request to the next server
 		lb.serversEndpoints.RoundRobinShufelling()
 		// lb.reverseProxy.ServeHTTP(c.Writer, c.Request)
 		// Manually construct the request to forward
 		req, err := http.NewRequest("GET", currentServerUrl.String(), nil)
 		if err != nil {
-			log.Println("Error creating request:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 			return
 		}
@@ -84,7 +81,6 @@ func RunLoanBalancer(numOfServers int16) {
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Println("Error forwarding request:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 			return
 		}
@@ -94,7 +90,6 @@ func RunLoanBalancer(numOfServers int16) {
 		// Read the response body
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			log.Println("Error reading response body:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 			return
 		}
@@ -103,7 +98,6 @@ func RunLoanBalancer(numOfServers int16) {
 		var bodyStruct ServerResponse
 		err = json.Unmarshal(bodyBytes, &bodyStruct)
 		if err != nil {
-			log.Println("Error parsing JSON:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 			return
 		}
@@ -121,9 +115,7 @@ isServerUp(url) check if the server is up and running, and its response is 200
 func isServerUp(serverUrl url.URL) bool {
 	response, err := http.Get(serverUrl.String())
 	if err != nil {
-		log.Println("found error : ", err)
 		return false
 	}
-	log.Println("response is : ", response.StatusCode)
 	return response.StatusCode == http.StatusOK
 }
