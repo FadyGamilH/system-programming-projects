@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,6 +14,9 @@ import (
 type loadBalancerServerList struct {
 	ports []string
 }
+
+// Global map to store server instances by port
+var serversMap = make(map[string]*http.Server)
 
 /*
 This function creates new server lists with thier ports so our load balancer can server the trafic to them
@@ -43,15 +47,12 @@ func (lbsl *loadBalancerServerList) PopServer() string {
 }
 
 func RunConcurrentServers(numOfConcurrentServers int16) error {
-	// define our list of servers
 	servers := NewLoadBalancerServerList(numOfConcurrentServers)
 
-	// define wg
 	var wg sync.WaitGroup
 	wg.Add(int(numOfConcurrentServers))
 	defer wg.Wait()
 
-	// start all servers in go routines
 	for i := 0; i < int(numOfConcurrentServers); i++ {
 		go StartServer(servers, &wg)
 	}
@@ -61,9 +62,8 @@ func RunConcurrentServers(numOfConcurrentServers int16) error {
 
 func StartServer(servers *loadBalancerServerList, wg *sync.WaitGroup) {
 	defer wg.Done()
-	router := gin.Default()
-	var mu sync.RWMutex
 
+	var mu sync.RWMutex
 	var port string
 	mu.Lock()
 	{
@@ -71,10 +71,34 @@ func StartServer(servers *loadBalancerServerList, wg *sync.WaitGroup) {
 	}
 	mu.Unlock()
 
+	router := gin.Default()
+	httpServer := &http.Server{
+		Addr:    ":" + port,
+		Handler: router,
+	}
+
+	// Store the server instance in the map
+	serversMap[port] = httpServer
+
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"server": port,
 		})
 	})
-	log.Fatal(router.Run(":" + port))
+
+	router.GET("/shutdown", func(c *gin.Context) {
+		// Retrieve the server instance from the map
+		srv, ok := serversMap[port]
+		if !ok {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Server not found"})
+			return
+		}
+		if err := srv.Shutdown(context.Background()); err != nil {
+			log.Printf("Server Shutdown Failed:%+v", err)
+		}
+	})
+
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("listen: %s\n", err)
+	}
 }
