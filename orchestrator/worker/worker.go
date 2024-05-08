@@ -16,10 +16,10 @@ Worker Features :
   - Has a local storage
 */
 type Worker struct {
-	TasksQueue queue.Queue
-	Storage    map[uuid.UUID]*task.Task
-	Name       string
-	TasksCount int64
+	TasksQueue        queue.Queue // receive tasks from the manager and process them in FIFO
+	TasksLocalStorage map[uuid.UUID]*task.Task
+	Name              string
+	TasksCount        int64
 }
 
 func (w *Worker) CollectStatsPeriodicaly() error {
