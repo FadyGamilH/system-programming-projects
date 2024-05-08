@@ -23,8 +23,8 @@ type Task struct {
 
 // we want an event to reprsent the transition of a task from state-A to state-B (specially this is used when user need to stop or start the task)
 type TaskEvent struct {
-	Task        Task
-	Id          uuid.UUID
-	State       TaskState
-	RequestedAt time.Time
+	Task              Task
+	Id                uuid.UUID
+	StateToTransition TaskState
+	RequestedAt       time.Time
 }
