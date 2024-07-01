@@ -1,7 +1,8 @@
 package worker
 
 /*
-Node is the physical machine, worker is a node, manager is a node and uses many nodes (workers) to run tasks on them
+- Node is the physical machine, worker is a node, manager is a node and uses many nodes (workers) to run tasks on them
+- A node will have 0 or more tasks
 */
 type Node struct {
 	Name                    string // node-A
@@ -11,7 +12,7 @@ type Node struct {
 	MaxNumCoresForTaskToUse int
 	TaskCount               int
 	CurrentAllocatedMemory  int
-	CurrentAllocatedTask    int
+	CurrentAllocatedDisk    int
 }
 
 type NodeRole string

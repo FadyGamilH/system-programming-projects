@@ -16,9 +16,10 @@ Manager
 */
 type Manager struct {
 	TasksQueue             queue.Queue
-	TasksLocalStorage      map[uuid.UUID]task.Task
-	TaskEventsLocalStorage map[uuid.UUID]task.TaskEvent
+	TasksLocalStorage      map[uuid.UUID][]*task.Task
+	TaskEventsLocalStorage map[uuid.UUID][]*task.TaskEvent
 	WorkersPool            []uuid.UUID
+	WorkersPoolByName      []string
 	// given a task name or id, find the worker that is running this task
 	TaskWorkerMapByTaskName map[string]uuid.UUID
 	TaskWorkerMapByTaskId   map[uuid.UUID]uuid.UUID
